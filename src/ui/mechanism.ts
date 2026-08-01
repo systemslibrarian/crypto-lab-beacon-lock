@@ -20,8 +20,13 @@
 import kat from '../fixtures/kat.json'
 import { beaconKeygen, roundMessage, signRound, verifyRound } from '../core/beacon'
 import { g1FromBytes, g2Base, g2FromBytes, gtEqual, gtToBytes, hashToG1, pairing } from '../core/bls'
-import { fromHex, toHex, xor } from '../core/bytes'
-import { decrypt, deserializeCiphertext, encrypt, h2, h4 } from '../core/tlock'
+import { fromHex, toHex } from '../core/bytes'
+import {
+  decrypt,
+  deserializeCiphertext,
+  encrypt,
+  type TimelockCiphertext,
+} from '../core/tlock'
 import {
   add,
   button,
@@ -56,6 +61,8 @@ interface Run {
   readonly W: Uint8Array
   readonly sigma: Uint8Array
   readonly plaintext: Uint8Array
+  /** The whole ciphertext, so the last step can run the real `decrypt()`. */
+  readonly ciphertext: TimelockCiphertext
 }
 
 /**
@@ -167,6 +174,7 @@ function buildRun(): Run {
     W: ciphertext.W,
     sigma: trace.sigma,
     plaintext,
+    ciphertext,
   }
 }
 
@@ -349,14 +357,40 @@ const STEPS: readonly Step[] = [
     actor: 'receiver',
     algebra: 'σ = V ⊕ H₂(mask)    M = W ⊕ H₄(σ)    U ?= H₃(σ, M)·G₂',
     render(host, run) {
-      const recovered = xor(run.W, h4(xor(run.V, h2(run.receiverMask, run.V.length)), run.W.length))
+      // The real decryptor, not a re-derivation of it: this is the same
+      // `decrypt()` the lock panel and the attack panel call, and the verdict
+      // below is read off its result rather than assumed.
+      const result = decrypt(run.signature, run.ciphertext)
+      const recovered = result.ok ? toHex(result.message) : '(nothing recovered)'
+      const foHeld = result.ok && recovered === toHex(run.plaintext)
       add(
         host,
         el('p', {
           text: 'Two XORs recover the message. The third line is the Fujisaki–Okamoto check, and it is not optional: without it any curve point produces some 32-byte output and the receiver has no way to know it was handed garbage. With it, a wrong round, a flipped bit or a fabricated key are all refused.',
         }),
-        hexDiff(toHex(run.plaintext), toHex(recovered), 'What was locked', 'What came out'),
-        verdict('ok', 'Opened', 'and the FO check confirmed the ciphertext was consistent'),
+        hexDiff(toHex(run.plaintext), recovered, 'What was locked', 'What came out'),
+        el('h4', { text: 'The Fujisaki–Okamoto check itself' }),
+        el('p', {
+          class: 'note',
+          text: 'The decryptor recomputes r = H₃(σ, M) from what it just recovered and rebuilds r·G₂. Here is that rebuilt point beside the U that actually travelled in the ciphertext — the decryptor returns a plaintext only when these two agree.',
+        }),
+        result.trace
+          ? hexDiff(
+              toHex(run.ciphertext.U.toBytes()),
+              toHex(result.trace.recomputedU.toBytes()),
+              'U, as sent',
+              'H₃(σ, M)·G₂, rebuilt by the receiver',
+            )
+          : null,
+        verdict(
+          foHeld ? 'ok' : 'alarm',
+          foHeld ? 'Opened' : result.ok ? 'Opened, but not what was locked' : 'Rejected',
+          foHeld
+            ? 'decrypt() returned the exact bytes that were locked, and its FO check passed'
+            : result.ok
+              ? 'the FO check passed but the recovered bytes differ from the plaintext'
+              : `decrypt() refused: ${result.reason}`,
+        ),
       )
     },
   },

@@ -115,10 +115,13 @@ export function mountAttack(host: HTMLElement): void {
       premise: 'The degenerate input every implementation should reject.',
       async run() {
         const { ciphertext } = await build()
+        const result = decrypt(G1.Point.ZERO, ciphertext)
         return refusal(
-          decrypt(G1.Point.ZERO, ciphertext).ok,
-          'the point at infinity pairs to the identity of GT, which unmasks nothing',
-          'Worth trying because plenty of real code has crashed or silently accepted here. This path computes the pairing, derives a σ, derives a message, and then fails the consistency check like any other wrong input — no special case, no exception.',
+          result.ok,
+          result.ok
+            ? 'the point at infinity opened the ciphertext'
+            : `decrypt() classified it as “${result.reason}”`,
+          'Worth trying because plenty of real code has crashed or silently accepted here. This one is refused a step earlier than the other eight: @noble/curves will not pair the point at infinity at all, so decrypt() never reaches the Fujisaki–Okamoto check — it catches the library’s refusal and reports the input as malformed. A rejection, but from the deserialisation layer rather than from the scheme.',
         )
       },
     },
@@ -170,23 +173,19 @@ export function mountAttack(host: HTMLElement): void {
       premise: 'Leave the crypto alone and just edit the header to say round 60.',
       async run() {
         const { ciphertext, payload } = await build()
-        // The timelock ciphertext itself carries no authenticated round, but the
-        // AEAD does: the round is its associated data.
+        // Door one: the timelock ciphertext itself carries no authenticated
+        // round, but the identity is derived from it, so asking for round 60's
+        // key is asking for a different ciphertext.
         const relabelled = { ...ciphertext, round: 60 }
-        const result = decrypt(signRound(keys.secret, roundMessage(60, 'unchained')), relabelled)
-        if (result.ok) {
-          const text = await open(result.message, payload, beU64(60))
-          return {
-            tone: 'ok',
-            headline: 'Rejected',
-            detail: 'the AEAD tag is computed over the round number',
-            explain: `Even in the branch where the timelock happened to open, the envelope would not: ${text === null ? 'AES-GCM returned nothing' : 'it returned the plaintext'}. Binding the round in as associated data is what stops a ciphertext being re-dated.`,
-          }
-        }
+        const timelock = decrypt(signRound(keys.secret, roundMessage(60, 'unchained')), relabelled)
+        // Door two, run rather than asserted: hand the envelope the GENUINE AES
+        // key and only change the associated data to the relabelled round. If
+        // the round were not authenticated, this would open.
+        const aeadText = await open(sealedKey, payload, beU64(60))
         return refusal(
-          false,
-          'the identity is derived from the round, so relabelling changes what key is needed',
-          'The header is not a label the decryptor trusts — it is an instruction about which identity to use. Point it at round 60 and you are simply asking for a different ciphertext, which this is not. The AEAD tag over the round number closes the same door from the other side.',
+          timelock.ok || aeadText !== null,
+          `the timelock reported “${timelock.ok ? 'opened' : timelock.reason}”, and the AEAD, given the real key but round 60 as associated data, ${aeadText === null ? 'returned nothing' : 'returned a plaintext'}`,
+          'Two independent locks, and this attempt runs both. The header is not a label the decryptor trusts — it is an instruction about which identity to use, so pointing it at round 60 asks for a different ciphertext. And even if you had the AES key outright, the round is the AEAD’s associated data, so re-dating the payload invalidates the GCM tag.',
         )
       },
     },

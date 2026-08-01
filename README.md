@@ -155,7 +155,7 @@ Everything runs in the browser. No backend, no network requests, no key material
 | **Any bit flipped in V or W** | `r = H₃(σ, M)` covers both, so a flipped bit invalidates the ciphertext instead of malleating the plaintext. |
 | **Ciphertext relabelled with a nearer round** | The identity is derived from the round, so relabelling asks for a different key; separately, the round is the AEAD's associated data, so the GCM tag stops verifying. |
 | **Chained beacon** | There is no identity to encrypt to. `roundMessage()` throws rather than inventing a placeholder. |
-| **Malformed point offered as a signature** | `assertValidity()` on deserialization rejects off-curve and off-subgroup encodings; the identity element gets no special case and fails the same consistency check. |
+| **Malformed point offered as a signature** | `assertValidity()` on deserialization rejects off-curve and off-subgroup encodings. The identity element is refused one layer earlier still: it cannot be paired at all, so `decrypt()` catches that and reports `malformed` without ever reaching the FO check. |
 | **Missing FO check** *(what a BasicIdent implementation would do)* | Any curve point yields a full-length, plausible, wrong plaintext. There is a test that demonstrates exactly this, so the value of the check is shown rather than asserted. |
 
 ---
