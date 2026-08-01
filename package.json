@@ -1,0 +1,29 @@
+{
+  "name": "crypto-lab-beacon-lock",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Beacon-based timelock encryption: a ciphertext locked to a future drand round, opened by the beacon's BLS signature acting as an IBE private key.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:a11y": "playwright test"
+  },
+  "dependencies": {
+    "@noble/curves": "^2.2.0",
+    "@noble/hashes": "^2.2.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.61.1",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.8.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.8"
+  },
+  "allowScripts": {
+    "esbuild@0.21.5": true
+  }
+}
