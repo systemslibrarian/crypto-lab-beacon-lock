@@ -162,7 +162,7 @@ Everything runs in the browser. No backend, no network requests, no key material
 
 ## Real-World Usage
 
-- **drand `tlock`** — the reference implementation, by Gailly, Melissaris and Nikolaenko. Same
+- **drand `tlock`** — the reference implementation, by Gailly, Melissaris and Romailler. Same
   construction as this page, with an age-compatible file format.
 - **drand quicknet** — the League of Entropy chain that made it deployable: unchained, three
   seconds a round, signatures in G1, running since August 2023. The chain hash, group public key
@@ -278,6 +278,6 @@ machine's numbers rather than a quoted figure.
 
 ---
 
-*One of 120+ browser demos in the [Crypto Lab](https://crypto-lab.systemslibrarian.dev/) suite.*
+*One of 170+ browser demos in the [Crypto Lab](https://crypto-lab.systemslibrarian.dev/) suite.*
 
 *"So whether you eat or drink or whatever you do, do it all for the glory of God." — 1 Corinthians 10:31*
