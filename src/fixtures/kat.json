@@ -1,61 +1,5 @@
 {
   "_source": "Captured verbatim from the cited specs and from api.drand.sh. Nothing in this file is computed by this repo — that is what makes it a known-answer test.",
-  "expandMessageXmd": {
-    "_spec": "RFC 9380 Appendix K.1 — expand_message_xmd(SHA-256)",
-    "dst": "QUUX-V01-CS02-with-expander-SHA256-128",
-    "vectors": [
-      {
-        "msg": "",
-        "lenInBytes": 32,
-        "uniformBytes": "68a985b87eb6b46952128911f2a4412bbc302a9d759667f87f7a21d803f07235"
-      },
-      {
-        "msg": "abc",
-        "lenInBytes": 32,
-        "uniformBytes": "d8ccab23b5985ccea865c6c97b6e5b8350e794e603b4b97902f53a8a0d605615"
-      },
-      {
-        "msg": "abcdef0123456789",
-        "lenInBytes": 32,
-        "uniformBytes": "eff31487c770a893cfb36f912fbfcbff40d5661771ca4b2cb4eafe524333f5c1"
-      },
-      {
-        "msg": "q128_qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-        "lenInBytes": 32,
-        "uniformBytes": "b23a1d2b4d97b2ef7785562a7e8bac7eed54ed6e97e29aa51bfe3f12ddad1ff9"
-      },
-      {
-        "msg": "a512_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "lenInBytes": 32,
-        "uniformBytes": "4623227bcc01293b8c130bf771da8c298dede7383243dc0993d2d94823958c4c"
-      },
-      {
-        "msg": "",
-        "lenInBytes": 128,
-        "uniformBytes": "af84c27ccfd45d41914fdff5df25293e221afc53d8ad2ac06d5e3e29485dadbee0d121587713a3e0dd4d5e69e93eb7cd4f5df4cd103e188cf60cb02edc3edf18eda8576c412b18ffb658e3dd6ec849469b979d444cf7b26911a08e63cf31f9dcc541708d3491184472c2c29bb749d4286b004ceb5ee6b9a7fa5b646c993f0ced"
-      },
-      {
-        "msg": "abc",
-        "lenInBytes": 128,
-        "uniformBytes": "abba86a6129e366fc877aab32fc4ffc70120d8996c88aee2fe4b32d6c7b6437a647e6c3163d40b76a73cf6a5674ef1d890f95b664ee0afa5359a5c4e07985635bbecbac65d747d3d2da7ec2b8221b17b0ca9dc8a1ac1c07ea6a1e60583e2cb00058e77b7b72a298425cd1b941ad4ec65e8afc50303a22c0f99b0509b4c895f40"
-      },
-      {
-        "msg": "abcdef0123456789",
-        "lenInBytes": 128,
-        "uniformBytes": "ef904a29bffc4cf9ee82832451c946ac3c8f8058ae97d8d629831a74c6572bd9ebd0df635cd1f208e2038e760c4994984ce73f0d55ea9f22af83ba4734569d4bc95e18350f740c07eef653cbb9f87910d833751825f0ebefa1abe5420bb52be14cf489b37fe1a72f7de2d10be453b2c9d9eb20c7e3f6edc5a60629178d9478df"
-      },
-      {
-        "msg": "q128_qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
-        "lenInBytes": 128,
-        "uniformBytes": "80be107d0884f0d881bb460322f0443d38bd222db8bd0b0a5312a6fedb49c1bbd88fd75d8b9a09486c60123dfa1d73c1cc3169761b17476d3c6b7cbbd727acd0e2c942f4dd96ae3da5de368d26b32286e32de7e5a8cb2949f866a0b80c58116b29fa7fabb3ea7d520ee603e0c25bcaf0b9a5e92ec6a1fe4e0391d1cdbce8c68a"
-      },
-      {
-        "msg": "a512_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "lenInBytes": 128,
-        "uniformBytes": "546aff5444b5b79aa6148bd81728704c32decb73a3ba76e9e75885cad9def1d06d6792f8a7d12794e90efed817d96920d728896a4510864370c207f99bd4a608ea121700ef01ed879745ee3e4ceef777eda6d9e5e38b90c86ea6fb0b36504ba4a45d22e86f6db5dd43d98a294bebb9125d5b794e9d2a81181066eb954966a487"
-      }
-    ]
-  },
   "hashToG1": {
     "_spec": "RFC 9380 Appendix J.9.1 — BLS12381G1_XMD:SHA-256_SSWU_RO_",
     "dst": "QUUX-V01-CS02-with-BLS12381G1_XMD:SHA-256_SSWU_RO_",
@@ -123,5 +67,19 @@
         "signature": "8cd93fb71fa263aeb4aa13694fcb2161344f9afed850f6aee85e2086ec6ac3570b54d16b68fe77f862d9f90fb38efb4d"
       }
     ]
+  },
+  "tlockInterop": {
+    "_spec": "A real ciphertext from the drand/tlock test corpus (testdata/lorem-tle-testnet-quicknet-t-2024-01-17-15-28.tle), with the beacon key and round signature from the drand quicknet-t testnet chain. Decrypting it proves byte-level compatibility with the reference Go implementation.",
+    "_source": "github.com/drand/tlock @ main; pl-us.testnet.drand.sh",
+    "chainHash": "cc9c398442737cbd141526600919edd69f1d6f9b4adb67e4d912fbc64341a9a5",
+    "beaconId": "quicknet-t",
+    "scheme": "bls-unchained-g1-rfc9380",
+    "publicKey": "b15b65b46fb29104f6a4b5d1e11a8da6344463973d423661bb0804846a0ecd1ef93c25057f1c0baab2ac53e56c662b66072f6d84ee791a3382bfb055afab1e6a375538d8ffc451104ac971d2dc9b168e2d3246b0be2015969cbaac298f6502da",
+    "round": 5423142,
+    "roundSignature": "96fce8e2f70e2784577c8f2d8bd36af7a4b0dfd73dd91469d8556b36d2973a4f84681a45b1af2ce0511e5a32dd72508f",
+    "_stanza": "The base64 body of the age `-> tlock` stanza: U (96 B, G2) || V (16 B) || W (16 B).",
+    "stanzaBase64": "hzM+G6r0X/r7qsKeRyrgl0mG6dYCj7SxXMRw/cfUEhMXM/bIZ8e8Vu1Stq6FGWtLDRVuZboAOLPGUhAXs67QxF8xAR20oybMdfT0qNeN7SRxWFPSXXrO4u6YqKAdiw0ghomSpJu7jfp3VvioBJMP5YyZc5j3L+jHLaOqtphPLJw",
+    "_expected": "The 16-byte age file key that tlock timelocked. Recovering it, with the FO check passing, is the interop proof.",
+    "expectedFileKey": "2088b21b7778175ecb9349dd98737373"
   }
 }

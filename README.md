@@ -43,10 +43,16 @@ unavailable until the beacon ticks.
 
 **Primitives.** Boneh–Franklin **FullIdent** IBE (CRYPTO 2001 §4.2) — BasicIdent plus the
 Fujisaki–Okamoto transform, so a wrong key is *detected* rather than silently producing garbage.
-BLS12-381 pairings via `@noble/curves`. RFC 9380 hash-to-curve and `expand_message_xmd`, the
-latter hand-rolled in this repo so it can be read. AES-256-GCM (WebCrypto) for the hybrid
-envelope. Beacon layout follows drand **quicknet** (`bls-unchained-g1-rfc9380`): signatures in
-G1, public keys in G2.
+BLS12-381 pairings via `@noble/curves`. RFC 9380 hash-to-curve for H₁. AES-256-GCM (WebCrypto)
+for the hybrid envelope. Beacon layout follows drand **quicknet**
+(`bls-unchained-g1-rfc9380`): signatures in G1, public keys in G2.
+
+**Byte-compatible with drand `tlock`.** The IBE is kyber's `EncryptCCAonG2` reimplemented
+exactly — same `IBE-H2`/`IBE-H3`/`IBE-H4` tags, same SHA-256 truncation, same little-endian
+counter in the H₃ rejection loop, and the same Fp12 serialization (kyber orders the twelve
+48-byte limbs in reverse relative to noble). That is **proven, not claimed**: the test suite
+opens a real ciphertext from drand's own `tlock` test corpus and recovers the exact key the Go
+implementation locked. See [Build & Verify](#build--verify).
 
 **Security model.** Confidentiality reduces to computational Diffie–Hellman in G1 on BLS12-381
 (~126 bits conjectured, after the 2016 exTNFS improvements). On top of that sit two assumptions
@@ -76,7 +82,9 @@ constant-time, and no key material on the page should protect anything you care 
 4. **The mechanism, one step at a time** — eight steps from "name a future round" to "the
    plaintext is on screen", with a who-can-open-it-early ledger in the middle. Step 7 prints the
    sender's `e(Q, P_pub)^r` and the receiver's `e(σ, U)` and compares all 1152 hex digits. That
-   comparison is what the demo exists for.
+   comparison is what the demo exists for. The panel closes with **"Does this match the real
+   thing?"** — a live decryption, in your browser, of a ciphertext produced by drand's reference
+   Go implementation.
 5. **Three models under a faster adversary** — a slider for the adversary's hardware, from 1× to
    10⁶×, against a squaring rate **measured live in your browser**. The puzzle and VDF curves
    fall in exact proportion; the beacon line is flat. A table carries the axes a chart cannot:
@@ -115,6 +123,8 @@ constant-time, and no key material on the page should protect anything you care 
 - **You need a release condition that is not time.** "When somebody proves X" is witness
   encryption, a different and much less practical primitive. This releases on a publication event
   and on nothing else.
+- **You want a drop-in `.tle` tool.** The IBE layer here interoperates, but this repo does not
+  implement the age container around it. Use drand's `tlock` for real files.
 - **You need the beacon operator to be unable to cheat.** They can always extract early. drand's
   answer is a threshold key across ~20 organisations; if that is not enough for your threat
   model, no parameter choice fixes it.
@@ -175,7 +185,7 @@ npm run dev            # http://localhost:5173
 ```
 
 ```bash
-npm test               # 128 unit tests, incl. the spec and network KATs
+npm test               # 119 unit tests, incl. the spec, network and interop KATs
 npm run build          # typecheck + production build
 npm run test:a11y      # axe WCAG 2.1 A/AA gate, both themes (needs a build first)
 ```
@@ -198,28 +208,40 @@ npm run test:a11y      # axe WCAG 2.1 A/AA gate, both themes (needs a build firs
 
 ## Build & Verify
 
-**128 unit tests** (Vitest, colocated as `src/**/*.test.ts`), of which the known-answer tests are:
+**119 unit tests** (Vitest, colocated as `src/**/*.test.ts`), of which the known-answer tests are:
 
 | KAT | Count | Source | File |
 |---|---|---|---|
-| `expand_message_xmd(SHA-256)` | 10 vectors | RFC 9380 Appendix K.1 | `src/core/xmd.test.ts` |
 | `BLS12381G1_XMD:SHA-256_SSWU_RO_` | 5 vectors | RFC 9380 Appendix J.9.1 | `src/core/bls.test.ts` |
 | BLS12-381 curve parameters | 7 constants | draft-irtf-cfrg-pairing-friendly-curves-11 §4.2.1 | `src/core/bls.test.ts` |
-| **Real drand quicknet rounds** | **4 signatures, 12 assertions** | `api.drand.sh`, captured 2026-08-01 | `src/core/beacon.test.ts`, `src/core/tlock.test.ts` |
+| Real drand quicknet rounds | 4 signatures, 12 assertions | `api.drand.sh`, captured 2026-08-01 | `src/core/beacon.test.ts`, `src/core/tlock.test.ts` |
+| **Reference `tlock` ciphertext** | **1 end-to-end decryption** | `drand/tlock` `testdata/`, plus the quicknet-t chain | `src/core/tlock.test.ts` |
 
 All fixtures live in `src/fixtures/kat.json` and are copied verbatim from those sources —
 **nothing in that file is computed by this repo.**
 
-The drand set is the load-bearing one. It verifies four signatures the League of Entropy actually
-published against quicknet's real group public key, rejects each of them against neighbouring
-rounds, and then **timelock-encrypts to those same real rounds and opens the ciphertexts with the
-real published signatures**. Passing it means the round encoding, the hash-to-curve domain
-separation tag, the G1/G2 group layout and the pairing equation all match the live network byte
-for byte. These are static fixtures: the lab makes **no network requests at runtime**.
+**The two load-bearing ones.**
 
-**Interop honesty:** the beacon half is byte-exact drand. The IBE's H₂/H₃/H₄ use this lab's own
-domain-separation tags rather than kyber's, so ciphertexts produced here are *not* byte-compatible
-with the `tlock` CLI. Same scheme, different wire format.
+*The beacon.* Four signatures the League of Entropy actually published are verified against
+quicknet's real group public key, rejected against neighbouring rounds, and then used to open
+timelock ciphertexts addressed to those same real rounds. Passing means the round encoding, the
+hash-to-curve DST, the G1/G2 layout and the pairing equation all match the live network.
+
+*The interop.* `INTEROP: decrypts a real ciphertext produced by the drand tlock CLI` takes the
+`-> tlock` stanza out of drand's own
+`testdata/lorem-tle-testnet-quicknet-t-2024-01-17-15-28.tle`, opens it with the signature the
+quicknet-t testnet published for round 5,423,142, and asserts the recovered 16-byte age file key
+equals `2088b21b7778175ecb9349dd98737373`. The Fujisaki–Okamoto check is what makes this
+decisive: it recomputes `r = H₃(σ, M)` and rebuilds `r·G₂`, so a foreign ciphertext can only pass
+if H₂, H₃, H₄ *and* the Fp12 serialization all match kyber byte for byte. A single wrong byte
+anywhere makes it a 1-in-2²⁵⁵ accident. The same check runs live in the browser at the end of
+exhibit 4.
+
+These are static fixtures: the lab makes **no network requests at runtime**.
+
+**What is still not interoperable:** the age container. This repo implements the identity-based
+encryption that `tlock` uses, not age's armor, HKDF or ChaCha20-Poly1305 STREAM, so it cannot
+read or write `.tle` files end to end.
 
 **Accessibility gate.** `npm run test:a11y` runs `@axe-core/playwright` against the production
 build served by `vite preview`, and asserts **zero WCAG 2.1 A/AA violations in both themes**. Each

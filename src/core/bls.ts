@@ -8,9 +8,9 @@
  *                         SSWU map in hash-to-curve, and the optimal-Ate
  *                         pairing. Nobody learns anything from a hand-written
  *                         Miller loop, and a wrong one would be a liability.
- *   this lab owns       — expand_message_xmd (src/core/xmd.ts), the round →
- *                         identity encoding, BLS sign/verify as an explicit
- *                         pairing equation, and the whole IBE (src/core/tlock.ts).
+ *   this lab owns       — the round → identity encoding, BLS sign/verify as an
+ *                         explicit pairing equation, the kyber GT serialization,
+ *                         and the whole IBE (src/core/tlock.ts).
  *
  * The teaching subject is the timelock construction, and every line of that is
  * readable here.
@@ -23,7 +23,6 @@
 
 import { bls12_381 as bls } from '@noble/curves/bls12-381.js'
 import { os2ip } from './bytes'
-import { xmd } from './xmd'
 
 export type G1Point = InstanceType<typeof bls.G1.Point>
 export type G2Point = InstanceType<typeof bls.G2.Point>
@@ -72,6 +71,33 @@ export function gtToBytes(gt: GTElement): Uint8Array {
   return Fp12.toBytes(gt)
 }
 
+/**
+ * The GT encoding drand's kyber produces — which is what the IBE's H₂ hashes,
+ * so getting it wrong means ciphertexts that are structurally correct and
+ * mutually unintelligible.
+ *
+ * kyber's BLS12-381 backend serializes the Fp12 tower in the opposite
+ * coefficient order to @noble/curves: where noble writes
+ * c0.c0.c0 … c1.c2.c1, kyber writes c1.c2.c1 … c0.c0.c0. Each 48-byte Fp limb
+ * is big-endian in both, so the conversion is exactly a reversal of the twelve
+ * limbs — no byte-swapping inside them.
+ *
+ * This is not a guess. It was recovered by decrypting a real `tlock` ciphertext
+ * from the drand/tlock test corpus and is pinned by a known-answer test
+ * (`tlock.test.ts`), where the Fujisaki–Okamoto check makes a wrong encoding a
+ * 1-in-2²⁵⁵ accident.
+ */
+export function gtToKyberBytes(gt: GTElement): Uint8Array {
+  const raw = Fp12.toBytes(gt)
+  const limb = 48
+  const count = raw.length / limb
+  const out = new Uint8Array(raw.length)
+  for (let i = 0; i < count; i++) {
+    out.set(raw.subarray(i * limb, (i + 1) * limb), (count - 1 - i) * limb)
+  }
+  return out
+}
+
 export function gtPow(gt: GTElement, exponent: bigint): GTElement {
   return Fp12.pow(gt, exponent)
 }
@@ -95,16 +121,6 @@ export function randomScalar(): bigint {
     const s = os2ip(bytes) % CURVE.order
     if (s !== 0n) return s
   }
-}
-
-/**
- * RFC 9380 §5.2 hash_to_field with m = 1 over the scalar field: expand to
- * L = ceil((ceil(log2(order)) + k) / 8) = 48 bytes, then reduce. The 128 extra
- * bits of headroom are what makes the reduction unbiased.
- */
-export function hashToScalar(msg: Uint8Array, dst: string): bigint {
-  const L = 48
-  return os2ip(xmd(msg, dst, L)) % CURVE.order
 }
 
 /** Deserialize a compressed G1 point, rejecting anything off-curve or off-subgroup. */

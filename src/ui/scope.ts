@@ -32,8 +32,8 @@ export function mountScope(host: HTMLElement): void {
   const rows: Array<[string, 'real' | 'simulated', string]> = [
     ['BLS12-381 arithmetic and pairings', 'real', '@noble/curves — the same library used in production Ethereum tooling.'],
     ['RFC 9380 hash-to-curve (H₁)', 'real', `Gated by ${kat.hashToG1.vectors.length} known-answer tests from the RFC, under the RFC's own domain separation tag.`],
-    ['expand_message_xmd', 'real', `Hand-rolled in this repo; gated by ${kat.expandMessageXmd.vectors.length} RFC 9380 vectors.`],
     ['Boneh–Franklin FullIdent IBE', 'real', 'Hand-rolled, including the Fujisaki–Okamoto check that makes the wrong key a rejection rather than garbage.'],
+    ['Byte-compatibility with drand tlock', 'real', `Proven, not claimed: this repo decrypts a real ciphertext from the drand/tlock test corpus (round ${kat.tlockInterop.round} on ${kat.tlockInterop.beaconId}) and recovers the exact key the Go implementation locked.`],
     ['AES-256-GCM envelope', 'real', 'WebCrypto. The target round is bound in as associated data.'],
     ['Beacon round encoding and verification', 'real', `Byte-exact drand quicknet — proven by verifying ${kat.drandQuicknet.rounds.length} signatures the real League of Entropy published.`],
     ['The beacon itself', 'simulated', 'A setInterval in this tab holding one secret scalar. The real chain is a t-of-n threshold key across ~20 organisations.'],
@@ -98,7 +98,7 @@ export function mountScope(host: HTMLElement): void {
         text: 'No distributed key generation ceremony. The interesting engineering in a real beacon is the DKG and the threshold signing; this lab replaces both with one scalar so the IBE structure stays visible.',
       }),
       el('li', {
-        text: 'Not byte-compatible with the drand tlock CLI. The scheme is the same and the beacon half is exact, but H₂/H₃/H₄ here use this lab’s own domain separation tags, so ciphertexts do not interoperate.',
+        text: 'No age file format. The IBE layer is byte-compatible with drand tlock — this repo opens a real .tle stanza — but it does not implement age’s armor, HKDF or ChaCha20-Poly1305 STREAM, so it cannot read or write .tle files end to end.',
       }),
     ),
     el('h3', { text: 'Where to go next' }),

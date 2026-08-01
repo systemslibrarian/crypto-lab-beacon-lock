@@ -30,21 +30,26 @@
  * Two parties, no shared secret, no interaction, no communication after the
  * ciphertext — and the receiver's half is unavailable until the beacon ticks.
  *
- * INTEROP HONESTY: this is the same construction drand's `tlock` implements,
- * and the beacon half is byte-exact drand quicknet (gated by KATs against real
- * League of Entropy rounds). The H2/H3/H4 hashes below use this lab's own
- * domain-separation tags rather than kyber's, so ciphertexts produced here are
- * NOT byte-compatible with the `tlock` CLI. Same scheme, different wire format.
+ * INTEROP: this is byte-compatible with drand's `tlock`. H₂/H₃/H₄ below are
+ * kyber's `encrypt/ibe` functions reimplemented exactly — same tags, same
+ * SHA-256 truncation, same rejection-sampling loop, same GT serialization —
+ * and the group layout is `EncryptCCAonG2` (master key in G2, identities in G1,
+ * U in G2), which is what quicknet uses.
+ *
+ * That claim is gated, not asserted: `tlock.test.ts` decrypts a real ciphertext
+ * from the drand/tlock test corpus using the real testnet beacon signature, and
+ * the Fujisaki–Okamoto check at the end of `decrypt` makes a wrong H₂, H₃, H₄
+ * or GT encoding a 1-in-2²⁵⁵ accident rather than something that quietly works.
  */
 
+import { sha256 } from '@noble/hashes/sha2.js'
 import {
   CURVE,
   g2Base,
   g2FromBytes,
   gtPow,
-  gtToBytes,
+  gtToKyberBytes,
   hashToG1,
-  hashToScalar,
   pairing,
   randomScalar,
   type G1Point,
@@ -52,26 +57,57 @@ import {
   type GTElement,
 } from './bls'
 import { DRAND_SIG_DST } from './bls'
-import { concat, xor } from './bytes'
-import { xmd } from './xmd'
+import { concat, os2ip, utf8, xor } from './bytes'
 
-const H2_DST = 'CRYPTO-LAB-BEACON-LOCK-IBE-H2'
-const H3_DST = 'CRYPTO-LAB-BEACON-LOCK-IBE-H3'
-const H4_DST = 'CRYPTO-LAB-BEACON-LOCK-IBE-H4'
+const H2_TAG = utf8('IBE-H2')
+const H3_TAG = utf8('IBE-H3')
+const H4_TAG = utf8('IBE-H4')
 
-/** H₂: GT → n bytes. Masks σ with the pairing result. */
+/**
+ * The scheme masks with SHA-256 output, so a payload can never exceed the hash
+ * size. Real tlock relies on this too: it timelocks a 16-byte age file key.
+ */
+export const MAX_MESSAGE_BYTES = 32
+
+/**
+ * H₂: GT → n bytes. `SHA-256("IBE-H2" ‖ gt)` truncated.
+ *
+ * The GT bytes must be kyber's serialization, not noble's — see
+ * `gtToKyberBytes`. This is the single place where the two libraries' Fp12
+ * layouts have to be reconciled, and getting it wrong produces ciphertexts
+ * that look perfect and interoperate with nothing.
+ */
 export function h2(gt: GTElement, n: number): Uint8Array {
-  return xmd(gtToBytes(gt), H2_DST, n)
+  return sha256(concat(H2_TAG, gtToKyberBytes(gt))).slice(0, n)
 }
 
-/** H₃: (σ, M) → scalar. The Fujisaki–Okamoto binding: r is a function of what it encrypts. */
+/**
+ * H₃: (σ, M) → scalar. The Fujisaki–Okamoto binding — r is a function of
+ * exactly what it encrypts, which is what makes the ciphertext non-malleable.
+ *
+ * kyber does not reduce modulo the group order; it rejection-samples, and the
+ * iteration counter is a LITTLE-endian uint16 while the candidate scalar is
+ * read BIG-endian. The top bit is masked off first because BLS12-381's scalar
+ * field is 255 bits inside a 256-bit canonical encoding. Reproduced here
+ * faithfully, quirks included, because interoperability lives in the quirks.
+ */
 export function h3(sigma: Uint8Array, message: Uint8Array): bigint {
-  return hashToScalar(concat(sigma, message), H3_DST)
+  const buffer = sha256(concat(H3_TAG, sigma, message))
+  // 256-bit canonical encoding over a 255-bit field ⇒ one bit to mask.
+  const toMask = 1
+  for (let i = 1; i < 65535; i++) {
+    const counter = Uint8Array.from([i & 0xff, (i >> 8) & 0xff])
+    const hashed = Uint8Array.from(sha256(concat(counter, buffer)))
+    hashed[0] = hashed[0]! >> toMask
+    const candidate = os2ip(hashed)
+    if (candidate < CURVE.order && candidate !== 0n) return candidate
+  }
+  throw new Error('h3: rejection sampling failure')
 }
 
-/** H₄: σ → n bytes. The one-time pad over the message itself. */
+/** H₄: σ → n bytes. `SHA-256("IBE-H4" ‖ σ)` truncated — the pad over the message. */
 export function h4(sigma: Uint8Array, n: number): Uint8Array {
-  return xmd(sigma, H4_DST, n)
+  return sha256(concat(H4_TAG, sigma)).slice(0, n)
 }
 
 export interface TimelockCiphertext {
@@ -119,6 +155,11 @@ export function encrypt(
   round: number,
   chainHash: string,
 ): EncryptResult {
+  if (message.length > MAX_MESSAGE_BYTES) {
+    throw new Error(
+      `encrypt: payload is ${message.length} bytes; the scheme masks with SHA-256 output, so ${MAX_MESSAGE_BYTES} is the ceiling. Timelock a symmetric key and seal the payload under it.`,
+    )
+  }
   const Q = hashToG1(identity, DRAND_SIG_DST)
   const Gid = pairing(Q, publicKey)
 

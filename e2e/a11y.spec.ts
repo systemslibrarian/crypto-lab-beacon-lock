@@ -91,7 +91,12 @@ async function driveHealthy(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Back', exact: true }).click()
   await page.getByRole('button', { name: 'Fresh randomness' }).click()
   await page.getByRole('button', { name: 'Jump to the comparison' }).click()
-  await expect(page.locator('#mechanism .hexdiff-equal')).toBeVisible()
+  await expect(page.locator('#mechanism .stepbody .hexdiff-equal')).toBeVisible()
+
+  // The interop check renders on mount; re-run it so the live region is
+  // repopulated under the scan as well.
+  await page.getByRole('button', { name: 'Open the reference ciphertext' }).click()
+  await expect(page.locator('#interop .verdict-ok')).toBeVisible()
 
   // Comparison: exercise both selects, the slider, and the reset.
   await page.locator('#cmp-delay').selectOption('31557600')

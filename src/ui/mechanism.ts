@@ -17,10 +17,11 @@
  * it; the ticking clock upstairs would otherwise move under your feet.
  */
 
-import { beaconKeygen, roundMessage, signRound } from '../core/beacon'
-import { g2Base, gtEqual, gtToBytes, hashToG1, pairing } from '../core/bls'
-import { toHex, xor } from '../core/bytes'
-import { encrypt, h2, h4 } from '../core/tlock'
+import kat from '../fixtures/kat.json'
+import { beaconKeygen, roundMessage, signRound, verifyRound } from '../core/beacon'
+import { g1FromBytes, g2Base, g2FromBytes, gtEqual, gtToBytes, hashToG1, pairing } from '../core/bls'
+import { fromHex, toHex, xor } from '../core/bytes'
+import { decrypt, deserializeCiphertext, encrypt, h2, h4 } from '../core/tlock'
 import {
   add,
   button,
@@ -30,6 +31,8 @@ import {
   expert,
   hexBlock,
   hexDiff,
+  honesty,
+  liveRegion,
   panel,
   stat,
   statRow,
@@ -53,6 +56,85 @@ interface Run {
   readonly W: Uint8Array
   readonly sigma: Uint8Array
   readonly plaintext: Uint8Array
+}
+
+/**
+ * The interop check.
+ *
+ * Everything above this point is a scheme we implemented and then tested
+ * against itself, which proves internal consistency and nothing more. This
+ * subpanel takes a ciphertext THIS PAGE DID NOT MAKE — one from drand's own
+ * `tlock` test corpus, produced by the reference Go implementation — and opens
+ * it with the signature the drand testnet really published for that round.
+ *
+ * If the Fujisaki–Okamoto check passes on a foreign ciphertext, then H₂, H₃,
+ * H₄, the GT serialization and the group layout all match the reference byte
+ * for byte. There is no partial credit: a single wrong byte anywhere makes this
+ * a 1-in-2²⁵⁵ event.
+ */
+function buildInteropCheck(): HTMLElement {
+  const v = kat.tlockInterop
+  const wrap = el('div', { class: 'subpanel', id: 'interop' })
+  const out = liveRegion('Interop check result')
+
+  const run = () => {
+    clear(out)
+    const stanza = Uint8Array.from(atob(v.stanzaBase64), (c) => c.charCodeAt(0))
+    const publicKey = g2FromBytes(fromHex(v.publicKey))
+    const signature = g1FromBytes(fromHex(v.roundSignature))
+    const message = roundMessage(v.round, 'unchained')
+    const signatureIsReal = verifyRound(publicKey, message, signature)
+    const ciphertext = deserializeCiphertext(stanza, v.round, v.chainHash)
+    const result = decrypt(signature, ciphertext)
+    const recovered = result.ok ? toHex(result.message) : null
+
+    add(
+      out,
+      statRow(
+        stat('Chain', v.beaconId),
+        stat('Round', String(v.round)),
+        stat('Stanza', `${stanza.length} B`),
+        stat('Beacon signature', signatureIsReal ? 'verifies' : 'does not verify', signatureIsReal ? 'ok' : 'alarm'),
+      ),
+      verdict(
+        result.ok && recovered === v.expectedFileKey ? 'ok' : 'alarm',
+        result.ok && recovered === v.expectedFileKey
+          ? 'Opened a ciphertext this page did not create'
+          : 'Interop failure',
+        result.ok
+          ? 'the Fujisaki–Okamoto check passed on a foreign ciphertext'
+          : 'the reference ciphertext did not open',
+      ),
+      hexDiff(
+        v.expectedFileKey,
+        recovered ?? '(nothing recovered)',
+        'The key the Go implementation locked',
+        'The key this page recovered',
+      ),
+      el('p', {
+        class: 'note',
+        text: 'Those 16 bytes are an age file key — tlock timelocks the key, and age seals the document under it. This page stops there: it implements the identity-based encryption, not the age container.',
+      }),
+    )
+  }
+
+  add(
+    wrap,
+    el('h3', { text: 'Does this match the real thing?' }),
+    el('p', {
+      text: 'Everything above tests our implementation against itself, which proves consistency and nothing more. So here is a ciphertext this page did not make: one from drand’s own tlock test corpus, produced by the reference Go implementation and locked to round ' +
+        v.round.toLocaleString() +
+        ' of the public quicknet-t testnet. Opening it uses the signature that network actually published.',
+    }),
+    el('div', { class: 'controls' }, button('Open the reference ciphertext', run)),
+    out,
+    honesty(
+      'This is the strongest claim on the page, so it is worth being precise about why it holds. The Fujisaki–Okamoto check recomputes r from the recovered plaintext and rebuilds r·G₂. For a foreign ciphertext to pass it, our H₂, our H₃ rejection loop, our H₄ and our GT serialization must all agree with kyber exactly. A single wrong byte in any of them makes this a 1-in-2²⁵⁵ accident.',
+    ),
+  )
+  // Run once on mount so the result is present without an interaction.
+  run()
+  return wrap
 }
 
 function buildRun(): Run {
@@ -332,6 +414,7 @@ export function mountMechanism(host: HTMLElement): void {
       }),
     ),
   )
+  section.appendChild(buildInteropCheck())
   host.appendChild(section)
 
   function go(next: number): void {

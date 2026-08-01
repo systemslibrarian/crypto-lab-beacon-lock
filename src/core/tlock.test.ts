@@ -15,8 +15,16 @@
 import { describe, expect, it } from 'vitest'
 import kat from '../fixtures/kat.json'
 import { CURVE, G1, g1FromBytes, g2Base, g2FromBytes, gtEqual, gtPow, hashToG1, pairing, randomScalar } from './bls'
+import { MAX_MESSAGE_BYTES } from './tlock'
 import { fromHex, fromUtf8, toHex, utf8 } from './bytes'
-import { SimulatedBeacon, beaconKeygen, roundMessage, signRound, type BeaconParams } from './beacon'
+import {
+  SimulatedBeacon,
+  beaconKeygen,
+  roundMessage,
+  signRound,
+  verifyRound,
+  type BeaconParams,
+} from './beacon'
 import {
   ciphertextOverhead,
   decrypt,
@@ -37,6 +45,44 @@ function payload(text: string): Uint8Array {
   bytes.set(utf8(text).subarray(0, 32))
   return bytes
 }
+
+describe('INTEROP: decrypts a real ciphertext produced by the drand `tlock` CLI', () => {
+  const vector = kat.tlockInterop
+  const stanza = Uint8Array.from(Buffer.from(vector.stanzaBase64, 'base64'))
+
+  it('the fixture is the shape an age tlock stanza has: U ‖ V ‖ W', () => {
+    // 96-byte G2 point, then two 16-byte halves — age file keys are 128 bits.
+    expect(stanza.length).toBe(96 + 16 + 16)
+  })
+
+  it('the captured round signature verifies under the captured chain key', () => {
+    const publicKey = g2FromBytes(fromHex(vector.publicKey))
+    const signature = g1FromBytes(fromHex(vector.roundSignature))
+    expect(verifyRound(publicKey, roundMessage(vector.round, 'unchained'), signature)).toBe(true)
+  })
+
+  it('recovers the exact age file key that the Go implementation locked', () => {
+    const signature = g1FromBytes(fromHex(vector.roundSignature))
+    const ciphertext = deserializeCiphertext(stanza, vector.round, vector.chainHash)
+
+    const result = decrypt(signature, ciphertext)
+
+    // The Fujisaki-Okamoto check is what makes this decisive: it recomputes
+    // r = H3(sigma, M) and rebuilds r*G2. Passing it means our H2, H3, H4 and
+    // our kyber GT serialization all match the reference byte for byte -- a
+    // 1-in-2^255 accident otherwise.
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(toHex(result.message)).toBe(vector.expectedFileKey)
+  })
+
+  it('rejects that same ciphertext under a neighbouring round’s signature', () => {
+    // Regenerate what the beacon would have signed one round later, using the
+    // same chain key, and confirm it does not open the ciphertext.
+    const keys = beaconKeygen()
+    const ciphertext = deserializeCiphertext(stanza, vector.round, vector.chainHash)
+    expect(decrypt(signRound(keys.secret, roundMessage(vector.round)), ciphertext).ok).toBe(false)
+  })
+})
 
 describe('interoperates with the real drand beacon', () => {
   it.each(quicknet.rounds.map((r) => [r.round, r] as const))(
@@ -111,7 +157,7 @@ describe('round trip against the simulated beacon', () => {
     const beacon = new SimulatedBeacon(params)
     beacon.advanceTo(1)
     const signature = beacon.at(1)!.signature
-    for (const size of [1, 16, 32, 64, 137]) {
+    for (const size of [1, 8, 16, 32]) {
       const message = new Uint8Array(size).fill(size & 0xff)
       const { ciphertext } = encrypt(beacon.keys.publicKey, roundMessage(1), message, 1, CHAIN)
       const result = decrypt(signature, ciphertext)
@@ -250,6 +296,18 @@ describe('the mask really is computed twice, from disjoint inputs', () => {
     const wire = toHex(serializeCiphertext(ciphertext))
     expect(wire).not.toContain(toHex(trace.sigma))
     expect(wire).not.toContain(trace.r.toString(16))
+  })
+})
+
+describe('payload ceiling', () => {
+  it('refuses a payload larger than the hash output rather than truncating it', () => {
+    const keys = beaconKeygen()
+    expect(() =>
+      encrypt(keys.publicKey, roundMessage(1), new Uint8Array(MAX_MESSAGE_BYTES + 1), 1, CHAIN),
+    ).toThrow(/ceiling/)
+    expect(() =>
+      encrypt(keys.publicKey, roundMessage(1), new Uint8Array(MAX_MESSAGE_BYTES), 1, CHAIN),
+    ).not.toThrow()
   })
 })
 

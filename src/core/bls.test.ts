@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from 'vitest'
 import kat from '../fixtures/kat.json'
-import { CURVE, G1, G2, g2Base, gtEqual, gtPow, hashToG1, hashToScalar, pairing, randomScalar } from './bls'
+import { CURVE, G1, G2, g2Base, gtEqual, gtPow, gtToBytes, gtToKyberBytes, hashToG1, pairing, randomScalar } from './bls'
 import { g1FromBytes, g2FromBytes } from './bls'
 import { fromHex, utf8 } from './bytes'
 
@@ -117,11 +117,28 @@ describe('scalars', () => {
     expect(seen.size).toBe(32)
   })
 
-  it('hashToScalar is deterministic, in range, and domain-separated', () => {
-    const msg = utf8('the message')
-    expect(hashToScalar(msg, 'DST-A')).toBe(hashToScalar(msg, 'DST-A'))
-    expect(hashToScalar(msg, 'DST-A')).not.toBe(hashToScalar(msg, 'DST-B'))
-    expect(hashToScalar(msg, 'DST-A')).toBeLessThan(CURVE.order)
+})
+
+describe('kyber GT serialization', () => {
+  it('is a pure reversal of the twelve 48-byte limbs', () => {
+    const gt = pairing(hashToG1(utf8('some element')), g2Base().multiply(randomScalar()))
+    const noble = gtToBytes(gt)
+    const kyber = gtToKyberBytes(gt)
+    expect(kyber.length).toBe(CURVE.gtBytes)
+    for (let i = 0; i < 12; i++) {
+      expect(Array.from(kyber.subarray(i * 48, (i + 1) * 48))).toEqual(
+        Array.from(noble.subarray((11 - i) * 48, (12 - i) * 48)),
+      )
+    }
+  })
+
+  it('is an involution, so nothing is lost in the conversion', () => {
+    const gt = pairing(G1.Point.BASE, G2.Point.BASE)
+    const once = gtToKyberBytes(gt)
+    // Reversing the limbs twice returns the original layout.
+    const twice = new Uint8Array(once.length)
+    for (let i = 0; i < 12; i++) twice.set(once.subarray(i * 48, (i + 1) * 48), (11 - i) * 48)
+    expect(Array.from(twice)).toEqual(Array.from(gtToBytes(gt)))
   })
 })
 
