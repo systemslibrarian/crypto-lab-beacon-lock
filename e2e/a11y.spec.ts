@@ -152,6 +152,96 @@ async function driveFailures(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Pause' }).click()
 }
 
+/**
+ * SC 1.4.11 (non-text contrast): every text-entry control boundary (textarea,
+ * select, text input) must reach 3:1 against the adjacent surface AND the
+ * field's own fill, in both themes. Axe does not flag border-vs-surface, so
+ * this composites rendered computed styles over the real ancestor backdrop
+ * and asserts the worst pairing directly.
+ */
+async function controlBorderContrasts(page: Page): Promise<Array<{ id: string; ratio: number }>> {
+  return page.evaluate(() => {
+    type C = { r: number; g: number; b: number; a: number }
+    const parse = (s: string): C => {
+      const m = s.match(/rgba?\(([^)]+)\)/)
+      if (!m || m[1] === undefined) return { r: 0, g: 0, b: 0, a: 0 }
+      const p = m[1].split(/[,\s/]+/).map(parseFloat)
+      return { r: p[0] ?? 0, g: p[1] ?? 0, b: p[2] ?? 0, a: p.length > 3 ? (p[3] ?? 1) : 1 }
+    }
+    const over = (fg: C, bg: C): C => {
+      const a = fg.a + bg.a * (1 - fg.a)
+      return {
+        r: (fg.r * fg.a + bg.r * bg.a * (1 - fg.a)) / a,
+        g: (fg.g * fg.a + bg.g * bg.a * (1 - fg.a)) / a,
+        b: (fg.b * fg.a + bg.b * bg.a * (1 - fg.a)) / a,
+        a,
+      }
+    }
+    const lum = (c: C) => {
+      const f = (v: number) => {
+        v /= 255
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
+      }
+      return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b)
+    }
+    const ratio = (a: C, b: C) => {
+      const [hi, lo] = lum(a) > lum(b) ? [lum(a), lum(b)] : [lum(b), lum(a)]
+      return (hi + 0.05) / (lo + 0.05)
+    }
+    const backdrop = (start: Element | null): C => {
+      const stack: C[] = []
+      for (let n = start; n; n = n.parentElement) {
+        const c = parse(getComputedStyle(n).backgroundColor)
+        if (c.a > 0) {
+          stack.push(c)
+          if (c.a >= 1) break
+        }
+      }
+      let out: C = { r: 255, g: 255, b: 255, a: 1 }
+      for (let i = stack.length - 1; i >= 0; i--) out = over(stack[i] as C, out)
+      return out
+    }
+    const out: Array<{ id: string; ratio: number }> = []
+    document.querySelectorAll<HTMLElement>("select, textarea, input[type='text']").forEach((el) => {
+      const r = el.getBoundingClientRect()
+      if (r.width === 0 || r.height === 0) return
+      const cs = getComputedStyle(el)
+      if (parseFloat(cs.borderTopWidth) === 0) return
+      const outside = backdrop(el.parentElement)
+      const fillRaw = parse(cs.backgroundColor)
+      const fill = fillRaw.a > 0 ? over(fillRaw, outside) : outside
+      const border = over(over(parse(cs.borderTopColor), fill), outside)
+      out.push({
+        id: el.id || el.tagName.toLowerCase(),
+        ratio: Math.min(ratio(border, outside), ratio(border, fill)),
+      })
+    })
+    return out
+  })
+}
+
+async function assertControlBorders(page: Page): Promise<void> {
+  const results = await controlBorderContrasts(page)
+  expect(results.length).toBeGreaterThan(0)
+  for (const { id, ratio } of results) {
+    expect(ratio, `#${id} border contrast`).toBeGreaterThanOrEqual(3)
+  }
+}
+
+test('control borders reach 3:1 — dark theme (SC 1.4.11)', async ({ page }) => {
+  await page.goto('.')
+  await page.waitForSelector('#lock-message')
+  await assertControlBorders(page)
+})
+
+test('control borders reach 3:1 — light theme (SC 1.4.11)', async ({ page }) => {
+  await page.goto('.')
+  await page.locator('#cl-theme-toggle').click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+  await page.waitForSelector('#lock-message')
+  await assertControlBorders(page)
+})
+
 test('no WCAG A/AA violations — dark theme', async ({ page }) => {
   await page.goto('.')
   await driveHealthy(page)

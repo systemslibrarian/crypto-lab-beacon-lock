@@ -20,6 +20,7 @@
   --surface-2: #24211a;
   --border: #3b342a;
   --border-strong: #574d3d;
+  --control-border: #847760; /* text-field/select boundary: >=3.6:1 on surfaces and field fill (SC 1.4.11) */
 
   --text: #f3eee4;
   --text-dim: #b8ad99;
@@ -49,6 +50,7 @@ html[data-theme='light'] {
   --surface-2: #f2ede2;
   --border: #ddd3c0;
   --border-strong: #a9997e;
+  --control-border: #81714f; /* text-field/select boundary: >=4:1 on surfaces and field fill (SC 1.4.11) */
 
   --text: #191509;
   --text-dim: #4f4636;
@@ -390,7 +392,7 @@ body {
   font-size: 0.92rem;
   padding: 0.42rem 0.6rem;
   border-radius: 8px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--control-border);
   background-color: var(--surface-2);
   color: var(--text);
   max-width: 100%;
