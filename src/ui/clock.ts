@@ -230,9 +230,33 @@ export function mountClock(host: HTMLElement): void {
     }
   }
 
+  /**
+   * The chain epoch the verification on screen was computed under, or null
+   * when nothing is shown. A verified round is a statement about one key pair:
+   * switching scheme or resetting the lab draws a fresh master secret, so the
+   * verdict and its two 576-byte GT elements stop describing anything that
+   * exists on the page. `renderVerification` retires them rather than letting
+   * "Signature valid" outlive the chain it was about.
+   */
+  let verifiedEpoch: number | null = null
+
+  function renderVerification(): void {
+    if (verifiedEpoch === null || verifiedEpoch === state.chainEpoch) return
+    verifiedEpoch = null
+    clear(verifyOut)
+    verifyOut.appendChild(
+      verdict(
+        'idle',
+        'Verification cleared',
+        'the chain was replaced — verify a round on the current one',
+      ),
+    )
+  }
+
   function showVerification(roundNo: number): void {
     const round = state.beacon.at(roundNo)
     clear(verifyOut)
+    verifiedEpoch = state.chainEpoch
     if (!round) {
       verifyOut.appendChild(verdict('warn', 'No such round', 'the beacon has not published it'))
       return
@@ -268,6 +292,7 @@ export function mountClock(host: HTMLElement): void {
     renderFace()
     renderFuture()
     renderRounds()
+    renderVerification()
   })
   renderFace()
   renderFuture()

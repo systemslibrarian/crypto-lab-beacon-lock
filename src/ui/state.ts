@@ -65,6 +65,22 @@ class LabState {
   /** Set when the visitor halts the beacon, so the UI can narrate the outage. */
   haltedAtRound: number | null = null
 
+  /**
+   * Bumped every time the chain itself is replaced — a scheme switch or a lab
+   * reset, both of which draw a fresh master secret and discard the vault.
+   *
+   * Panels that render a one-shot result (a verified round, a lock receipt)
+   * keep the epoch they were computed under and retire themselves when it
+   * moves. Without this a verdict outlives its inputs: the beacon panel went on
+   * printing "Signature valid" plus two 576-byte GT elements belonging to a key
+   * pair that no longer exists anywhere on the page, and the lock panel went on
+   * saying "Locked to round 9" beside a vault reading "Nothing locked yet".
+   *
+   * A tick must NOT bump this. Rounds already published stay valid as the
+   * beacon advances; only replacing the beacon invalidates them.
+   */
+  chainEpoch = 0
+
   private paramsFor(scheme: BeaconScheme): BeaconParams {
     return { periodSeconds: DEFAULT_PERIOD_SECONDS, genesisTime: 0, scheme }
   }
@@ -153,6 +169,7 @@ class LabState {
     this.beacon = new SimulatedBeacon(this.paramsFor(scheme))
     this.items.length = 0
     this.haltedAtRound = null
+    this.chainEpoch++
     this.beacon.advanceTo(1)
     this.notify()
   }
@@ -259,6 +276,7 @@ class LabState {
     this.beacon = new SimulatedBeacon(this.paramsFor(this.scheme))
     this.items.length = 0
     this.haltedAtRound = null
+    this.chainEpoch++
     this.beacon.advanceTo(1)
     this.start()
   }

@@ -140,9 +140,26 @@ export function mountLock(host: HTMLElement): void {
   }
   ahead.addEventListener('input', renderAhead)
 
+  /**
+   * The chain epoch the lock receipt above the vault was written under, or
+   * null when nothing is shown. A scheme switch or a lab reset discards every
+   * ciphertext, so a receipt reading "Locked to round 9" would otherwise sit
+   * directly above a vault reading "Nothing locked yet" — two surfaces of one
+   * panel disagreeing about whether anything is locked, and a round number
+   * that no longer means anything on the restarted chain.
+   */
+  let statusEpoch: number | null = null
+
+  function renderStatus(): void {
+    if (statusEpoch === null || statusEpoch === state.chainEpoch) return
+    statusEpoch = null
+    clear(status)
+  }
+
   async function doLock(): Promise<void> {
     const text = message.value.trim()
     clear(status)
+    statusEpoch = state.chainEpoch
     if (!text) {
       status.appendChild(verdict('warn', 'Nothing to lock', 'type a message first'))
       return
@@ -328,6 +345,7 @@ export function mountLock(host: HTMLElement): void {
   state.subscribe(() => {
     renderAhead()
     renderVault()
+    renderStatus()
   })
   renderAhead()
   renderVault()

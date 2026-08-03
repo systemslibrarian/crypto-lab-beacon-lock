@@ -243,6 +243,16 @@ These are static fixtures: the lab makes **no network requests at runtime**.
 encryption that `tlock` uses, not age's armor, HKDF or ChaCha20-Poly1305 STREAM, so it cannot
 read or write `.tle` files end to end.
 
+**Functional gate.** `e2e/claims.spec.ts` runs under the same command and drives the same
+production build, because axe only proves the page is *perceivable* — it never reads a verdict.
+Nothing there is asserted against a literal the source also contains: the recovered plaintext is
+checked against the textarea that fed the encryptor, the "bytes on the wire" figure against the
+byte stats printed beside it, the comparison summary against the comparison table and against the
+chart's own screen-reader description, the nav round against the clock face, and the outage count
+against the vault cards it claims to be counting. Every refusal path must both reach its failure
+state and name the cause, and the attack exhibit's "eight of these nine fail" is counted rather
+than trusted.
+
 **Accessibility gate.** `npm run test:a11y` runs `@axe-core/playwright` against the production
 build served by `vite preview`, and asserts **zero WCAG 2.1 A/AA violations in both themes**. Each
 theme is scanned twice — once with the healthy states on screen and once with the failure states
