@@ -52,10 +52,23 @@ html[data-theme='light'] {
   --border-strong: #a9997e;
   --control-border: #81714f; /* text-field/select boundary: >=4:1 on surfaces and field fill (SC 1.4.11) */
 
+  /* This theme needs its OWN accent. --accent is nowhere a text colour — it is
+     the fill of every primary .btn (whose border is transparent, so the fill is
+     the control's only boundary), the bar of every .meter-fill, the stroke that
+     marks .stepdot.is-current and .vault-item.is-ready, and the 2px underline
+     on the current .labnav-link. All of that is WCAG 1.4.11 surface, needing
+     3:1 against what it sits on. The dark theme's #f59e0b clears that easily
+     there — 8.25:1 on --surface, 7.48:1 on --surface-2, 8.92:1 on --bg — and,
+     left undeclared here, was painted unchanged on near-white, where the same
+     hue measures 2.15:1, 1.84:1 and 2.01:1. Every one of those is under the
+     floor, and none of them is text, so no contrast oracle reports it. */
+  --accent: #9a5c00;
+
   --text: #191509;
   --text-dim: #4f4636;
   --accent-text: #8a5000;
-  --ink-on-accent: #241a02;
+  /* Paired with the accent above, on which #241a02 would be 3.19:1. */
+  --ink-on-accent: #ffffff;
 
   --ok-text: #0a6437;
   --ok-bg: #e3f3ea;

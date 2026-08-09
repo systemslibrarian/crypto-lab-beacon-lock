@@ -80,7 +80,19 @@ export function mountCompare(host: HTMLElement): void {
 
   const figure = el('figure', { class: 'chart-figure' })
   const caption = el('figcaption', { class: 'chart-caption' })
-  const chartHost = el('div', { class: 'chart-host' })
+  // `.chart` carries `min-width: 34rem`, so `.chart-host` is a horizontal
+  // scroller on any viewport under ~544px — which is every phone. It holds no
+  // focusable content (the chart is one `role="img"` <svg>), so without a
+  // tabindex there is no keyboard route to the scrolled-off half of it at all:
+  // WCAG 2.1.1, flagged by axe as `scrollable-region-focusable` and by the
+  // gate's own scroller oracle, in every single state at 380px. A focus target
+  // needs a name, and `role="group"` is what makes naming it legal.
+  const chartHost = el('div', {
+    class: 'chart-host',
+    tabindex: '0',
+    role: 'group',
+    'aria-label': 'Open-time chart, scrollable sideways',
+  })
   add(figure, chartHost, caption)
 
   const legend = el('ul', { class: 'legend', role: 'list' })
