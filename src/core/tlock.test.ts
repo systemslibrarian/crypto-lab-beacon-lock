@@ -17,6 +17,7 @@ import kat from '../fixtures/kat.json'
 import { CURVE, G1, g1FromBytes, g2Base, g2FromBytes, gtEqual, gtPow, hashToG1, pairing, randomScalar } from './bls'
 import { MAX_MESSAGE_BYTES } from './tlock'
 import { fromHex, fromUtf8, toHex, utf8 } from './bytes'
+import { NONCE_BYTES, TAG_BYTES, randomKey, seal } from './envelope'
 import {
   SimulatedBeacon,
   beaconKeygen,
@@ -327,6 +328,29 @@ describe('wire format', () => {
     const { ciphertext } = encrypt(keys.publicKey, roundMessage(9), payload('x'), 9, CHAIN)
     expect(serializeCiphertext(ciphertext).length).toBe(32 + ciphertextOverhead(32))
     expect(ciphertextOverhead(32)).toBe(CURVE.g2CompressedBytes + 32)
+  })
+
+  it('is 160 bytes of stanza, 128 over the key it wraps, 188 over a plaintext', async () => {
+    // The three numbers the README quotes, each from the code that produces it:
+    // the stanza is U ‖ V ‖ W; `ciphertextOverhead` counts only U + V, because
+    // W replaces the wrapped key byte for byte; and what a reader actually pays
+    // for a locked item is the stanza plus the AEAD nonce and tag.
+    const keys = beaconKeygen()
+    const key = randomKey()
+    const { ciphertext } = encrypt(keys.publicKey, roundMessage(9), key, 9, CHAIN)
+    const stanza = serializeCiphertext(ciphertext)
+
+    expect(ciphertext.U.toBytes().length).toBe(96)
+    expect(ciphertext.V.length).toBe(32)
+    expect(ciphertext.W.length).toBe(32)
+    expect(stanza.length).toBe(160)
+    expect(ciphertextOverhead(32)).toBe(128)
+
+    const text = 'a note nobody can read yet'
+    const sealed = await seal(key, text, utf8('9'))
+    const onTheWire = stanza.length + sealed.ciphertext.length + NONCE_BYTES
+    expect(onTheWire).toBe(utf8(text).length + 188)
+    expect(NONCE_BYTES + TAG_BYTES).toBe(28)
   })
 
   it('rejects malformed encodings rather than guessing', () => {

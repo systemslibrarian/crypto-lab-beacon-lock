@@ -123,7 +123,7 @@ export function mountLock(host: HTMLElement): void {
       'What is actually in a locked item',
       el('p', {
         text:
-          'Exactly what real tlock does. A fresh AES-256 key seals the text with GCM; the timelock covers only that 32-byte key, so the pairing work is a fixed cost no matter how long the message is. The target round is bound into the AEAD as associated data, so an attacker cannot relabel a ciphertext with a nearer unlock time — the tag stops verifying.',
+          'The same hybrid pattern as real tlock, with different parts: tlock timelocks a 16-byte age file key and age seals the document with ChaCha20-Poly1305, while this page timelocks a 32-byte key and seals the text with AES-256-GCM. Either way the timelock covers only the key, so the pairing work is a fixed cost no matter how long the message is. The target round is bound into the AEAD as associated data, so an attacker cannot relabel a ciphertext with a nearer unlock time — the tag stops verifying.',
       }),
       el('p', {
         text:

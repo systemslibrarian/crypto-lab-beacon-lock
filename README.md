@@ -281,16 +281,29 @@ surface. Adjust them with the validator, not by eye.
 
 ## Performance
 
-Measured on an Apple Silicon laptop, Node 24 (browser figures are comparable):
+Measured on 15 November 2026 with this lab's own code under its own harness (`vitest run` over
+`src/core`: 200 interleaved rounds after 40 warm-up rounds, medians), Node 26 on an Apple Silicon
+laptop that was carrying heavy concurrent load at the time. Absolute figures are that one run and
+nothing more — the ratio column is the stable one:
 
-| Operation | Cost |
+| Operation | This run | × one pairing |
+|---|---|---|
+| BLS12-381 pairing | 17.0 ms | 1.00 |
+| Hash-to-G1 (RFC 9380) | 3.3 ms | 0.20 |
+| G2 scalar multiplication | 2.6 ms | 0.15 |
+| GT exponentiation | 16.4 ms | 0.96 |
+| Timelock encrypt (hash-to-G1 + 1 pairing + 1 GT exponentiation + 1 G2 mul) | 39.7 ms | 2.33 |
+| Timelock decrypt (1 pairing + 1 G2 mul, plus the FO check) | 20.1 ms | 1.18 |
+
+`decrypt` computes `pairing(signature, ct.U)` itself, so it can never come in under one
+pairing; an earlier version of this table had it at two thirds of one, which no machine can
+produce. The ratios are the part that travels between machines.
+
+| Size on the wire | |
 |---|---|
-| BLS12-381 pairing | ~14 ms |
-| Hash-to-G1 (RFC 9380) | ~1.3 ms |
-| G2 scalar multiplication | ~0.5 ms |
-| Timelock encrypt (1 pairing + 1 GT exponentiation + 1 G2 mul) | ~19 ms |
-| Timelock decrypt (1 pairing + 1 G2 mul, plus the FO check) | ~9 ms |
-| Ciphertext overhead | 128 bytes (96 B for `U` in G2, 32 B for `V`) + 28 B of AEAD |
+| Timelock stanza (`U` ‖ `V` ‖ `W`) | 160 bytes: `U` 96 B (compressed G2) + `V` 32 B + `W` 32 B |
+| Growth over the key it wraps | 128 bytes — `U` + `V` over a 32-byte key, which is the “Timelock overhead” the page prints |
+| Growth over your plaintext | 188 bytes — the 160-byte stanza plus the 12-byte nonce and 16-byte GCM tag |
 
 Pairings are the expensive part, which is why the timelock covers only a 32-byte AES key and the
 payload rides under AES-256-GCM. That cost is fixed no matter how large the message is.
