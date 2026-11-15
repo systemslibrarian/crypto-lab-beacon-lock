@@ -86,7 +86,7 @@ export function mountOutage(host: HTMLElement): void {
     expert(
       'Why you cannot just wait longer',
       el('p', {
-        text: 'With a time-lock puzzle, "unopenable" is a statement about a budget: the secret is inside, and the only question is how many squarings you are willing to pay for. With a beacon lock the secret is not inside. Recovering it means producing s·H₁(m) without s, which is the computational Diffie–Hellman problem in G1 on BLS12-381 — roughly 2¹²⁶ work, and no amount of patience converts into progress against it.',
+        text: 'With a time-lock puzzle, "unopenable" is a statement about a budget: the secret is inside, and the only question is how many squarings you are willing to pay for. With a beacon lock the secret is not inside. Recovering it means producing s·H₁(m) from the beacon’s published s·G₂, which is the Diffie–Hellman problem across the pairing’s two groups — the gap Diffie–Hellman assumption the tlock paper names for BLS, with the ciphertext’s own mask resting on co-bilinear Diffie–Hellman. Roughly 2¹²⁶ work on BLS12-381, and no amount of patience converts into progress against it.',
       }),
       el('p', {
         text: 'This is also the sharp line between timelock encryption and witness encryption. A witness-encrypted ciphertext opens for anyone who can produce a witness for some NP statement, whenever they manage it. A timelocked one opens when a particular key gets published, and never otherwise. Different guarantee, different failure.',

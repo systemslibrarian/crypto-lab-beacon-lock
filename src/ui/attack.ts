@@ -104,7 +104,7 @@ export function mountAttack(host: HTMLElement): void {
         return refusal(
           result.ok,
           'well-formed, on the curve, in the subgroup — and still wrong',
-          'The point is valid; it is simply not s·Q. Producing s·Q from Q and s·G₂ is the computational Diffie–Hellman problem in G1, which is what the scheme’s security reduces to. Being able to make points is not the hard part.',
+          'The point is valid; it is simply not s·Q. Producing s·Q from Q and s·G₂ is the Diffie–Hellman problem across the pairing’s two groups — the gap Diffie–Hellman assumption the tlock paper names for BLS. Being able to make points is not the hard part.',
           { label: 'Your forged “signature”', value: elide(toHex(forged.toBytes()), 48, 16) },
         )
       },
@@ -266,7 +266,7 @@ export function mountAttack(host: HTMLElement): void {
         'ul',
         { class: 'rules' },
         el('li', {
-          text: 'Solving computational Diffie–Hellman in G1 on BLS12-381 — deriving s·Q from (Q, s·G₂). Around 2¹²⁶ work classically, and this is the assumption the whole scheme sits on.',
+          text: 'Breaking either assumption Theorem 1 of the tlock paper reduces to, in the random oracle model: gap Diffie–Hellman — deriving s·Q from (Q, s·G₂) — or co-bilinear Diffie–Hellman, which is what hides the GT mask. Around 2¹²⁶ work classically on BLS12-381, and these are what the whole scheme sits on.',
         }),
         el('li', {
           text: 'A large-scale quantum computer. Shor’s algorithm recovers s from s·G₂, and every ciphertext ever locked to that chain opens at once, retroactively. Timelock encryption is not post-quantum, and nobody has a pairing-free replacement with the same properties.',

@@ -444,7 +444,7 @@ export function mountMechanism(host: HTMLElement): void {
     expert(
       'What this does NOT prove',
       el('p', {
-        text: 'That the beacon will keep running, that its operators will not collude to sign early, and that the discrete-log and bilinear Diffie–Hellman assumptions on BLS12-381 hold. It also does not prove anything about the beacon’s randomness quality — a timelock needs the beacon to be punctual and honest, not unpredictable.',
+        text: 'That the beacon will keep running, that its operators will not collude to sign early, and that the gap and co-bilinear Diffie–Hellman assumptions on BLS12-381 hold. It also does not prove anything about the beacon’s randomness quality — a timelock needs the beacon to be punctual and honest, not unpredictable.',
       }),
     ),
   )

@@ -14,11 +14,11 @@ export function mountIntro(host: HTMLElement): void {
     el('p', {
       class: 'lede-big',
       text:
-        'You can encrypt something today so that nobody — including you — can read it until a specific moment next week. No trusted escrow holding a copy, no "please delete this on Tuesday" promise, no server deciding when to hand it over.',
+        'You can encrypt something today so that nobody — including you — can read it until a specific moment next week. No single escrow holding a copy, no "please delete this on Tuesday" promise, no server deciding when to hand it over: the key is split across the beacon’s operators, and it takes a threshold of them to assemble it early.',
     }),
     el('p', {
       text:
-        'The trick is to borrow a clock that already exists in public. A randomness beacon publishes a fresh signed number every few seconds, forever, on a fixed schedule. Encrypt to a round that has not happened yet, and the signature the beacon will publish for that round turns out to be exactly the decryption key. Until then the key does not exist anywhere, because nobody has signed that round yet.',
+        'The trick is to borrow a clock that already exists in public. A randomness beacon publishes a fresh signed number every few seconds, forever, on a fixed schedule. Encrypt to a round that has not happened yet, and the signature the beacon will publish for that round turns out to be exactly the decryption key. Until then the key does not exist anywhere, because nobody has signed that round yet — and assembling it early takes a threshold of the beacon’s operators doing it in private.',
     }),
     el('p', {
       text:
@@ -71,7 +71,7 @@ export function mountIntro(host: HTMLElement): void {
       'The one-line version for someone who already knows IBE',
       el('p', {
         text:
-          'Beacon timelock is Boneh–Franklin identity-based encryption with the identity set to a future round number. The beacon is the private key generator; it extracts exactly one identity key per round, publicly, on a timer, and it cannot be persuaded to extract early. The "IBE private key" for round n is the beacon’s BLS signature on round n — the same bytes anybody can download the moment they exist.',
+          'Beacon timelock is Boneh–Franklin identity-based encryption with the identity set to a future round number. The beacon is the private key generator; it extracts exactly one identity key per round, publicly, on a timer, and no single operator can be persuaded to extract early — though a threshold of them could. The "IBE private key" for round n is the beacon’s BLS signature on round n — the same bytes anybody can download the moment they exist.',
       }),
       el('p', {
         text:

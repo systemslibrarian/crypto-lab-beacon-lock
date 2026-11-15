@@ -54,11 +54,21 @@ counter in the H₃ rejection loop, and the same Fp12 serialization (kyber order
 opens a real ciphertext from drand's own `tlock` test corpus and recovers the exact key the Go
 implementation locked. See [Build & Verify](#build--verify).
 
-**Security model.** Confidentiality reduces to computational Diffie–Hellman in G1 on BLS12-381
-(~126 bits conjectured, after the 2016 exTNFS improvements). On top of that sit two assumptions
-that are *not* mathematical: the beacon stays **live** until the target round, and a threshold of
-its operators do not **sign early in private**. Both are stated on the page, and one of them has
-its own exhibit.
+**Security model.** Theorem 1 of the `tlock` paper proves the construction this page runs —
+BF-IBE keyed to the round signature — CCA-secure **in the random oracle model** under the **gap
+Diffie–Hellman** and **co-bilinear Diffie–Hellman** assumptions (Gailly–Melissaris–Romailler,
+ePrint 2023/189). GDH is what BLS itself reduces to; co-BDH is what Boneh–Franklin reduces to
+over type-3 pairings — the asymmetric (co-)BDH variant
+[crypto-lab-ibe-gate](https://systemslibrarian.github.io/crypto-lab-ibe-gate/) names for the same
+construction, and not plain CDH in one group, because a co-BDH instance is spread across both G1
+and G2. BLS12-381 puts that at ~126 bits conjectured, after the 2016 exTNFS improvements. On top
+of it sit two assumptions that are *not* mathematical: the beacon stays **live** until the target
+round, and a threshold of its operators do not **sign early in private**. Both are stated on the
+page, and one of them has its own exhibit.
+
+**Standards reviewed 15 November 2026:** the assumption names above are Theorem 1 and §2.1 of
+ePrint 2023/189; the custodian wording below is §6.1 of the same paper, which trusts only "that
+there is never a threshold t of malicious nodes."
 
 **Not production cryptography.** A teaching demo. Nothing here is audited, none of it is
 constant-time, and no key material on the page should protect anything you care about.
@@ -108,8 +118,10 @@ constant-time, and no key material on the page should protect anything you care 
   embargoed disclosures, coordinated vulnerability release, a will that opens on a date.
 - **Many parties must open simultaneously.** One 48-byte publication unlocks every ciphertext
   addressed to that round, for everyone, at the same instant.
-- You cannot tolerate a **custodian**. There is no escrow to subpoena, breach or bribe, because
-  nobody holds the key before it is published to the world.
+- You cannot tolerate a **single custodian**. The escrow is spread rather than removed: the
+  master secret lives as a threshold share across the beacon's operators, so there is no one party
+  to subpoena, breach or bribe — and it takes a threshold of them, signing in private, to extract
+  a round key before it is published to the world.
 - You need the delay to be **immune to money.** An adversary with a warehouse of ASICs opens at
   exactly the same second as everyone else.
 
@@ -171,7 +183,8 @@ Everything runs in the browser. No backend, no network requests, no key material
   after the ordering is fixed, so nobody can front-run what they cannot read.
 - **Coordinated disclosure and embargoes** — publish the ciphertext ahead of the date; the
   embargo is enforced by arithmetic rather than by everyone's good behaviour.
-- **Dead-man switches** — no service holding a copy, and no service that can be leaned on.
+- **Dead-man switches** — no single service holding a copy, and no single service that can be
+  leaned on.
 
 ---
 
