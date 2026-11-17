@@ -187,9 +187,12 @@ class LabState {
   /**
    * Lock a message to a future round.
    *
-   * Hybrid, exactly as real tlock does it: a fresh AES-256 key seals the text,
-   * and the timelock covers only that 32-byte key. The round number is bound
-   * into the AEAD as associated data, so the header cannot be relabelled.
+   * The same hybrid pattern as real tlock, with different parts: tlock
+   * timelocks a 16-byte age file key and age seals the document with
+   * ChaCha20-Poly1305, while here a fresh AES-256 key seals the text and the
+   * timelock covers only that 32-byte key. Either way the timelock covers only
+   * the key. The round number is bound into the AEAD as associated data, so the
+   * header cannot be relabelled.
    */
   async lock(label: string, plaintext: string, targetRound: number): Promise<LockedItem> {
     const identity = this.messageForRound(targetRound)
