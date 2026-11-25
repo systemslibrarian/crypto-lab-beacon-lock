@@ -35,7 +35,7 @@ import { state, type LockedItem, type OpenOutcome } from './state'
 const PRESETS = [
   { label: 'Embargoed press release', text: 'Q3 results: revenue up 14%. Under embargo until the bell.' },
   { label: 'Sealed bid', text: 'Bid: 4,250,000 — sealed until the auction closes.' },
-  { label: 'Dead-man switch', text: 'If you are reading this, the check-in did not happen.' },
+  { label: 'Scheduled letter', text: 'A note for the future library staff, to open on the anniversary.' },
 ]
 
 export function mountLock(host: HTMLElement): void {
@@ -157,16 +157,19 @@ export function mountLock(host: HTMLElement): void {
   }
 
   async function doLock(): Promise<void> {
-    const text = message.value.trim()
+    const text = message.value
+    const epoch = state.chainEpoch
     clear(status)
     statusEpoch = state.chainEpoch
-    if (!text) {
+    if (!text.trim()) {
       status.appendChild(verdict('warn', 'Nothing to lock', 'type a message first'))
       return
     }
     const target = state.round + Number(ahead.value)
     try {
-      const item = await state.lock(PRESETS[Number(preset.value)]!.label, text, target)
+      const template = PRESETS[Number(preset.value)]!
+      const item = await state.lock(text === template.text ? template.label : 'Custom message', text, target)
+      if (epoch !== state.chainEpoch) return
       clear(status)
       add(
         status,
@@ -177,10 +180,11 @@ export function mountLock(host: HTMLElement): void {
         ),
         el('p', {
           class: 'note',
-          text: `The AES key is gone from this page — the only copy is inside V and W, masked by a group element that needs the beacon's round-${target} signature to reconstruct.`,
+          text: `The vault stores the sealed message and its wrapped AES key. The round-${target} signature opens the key. This simulated beacon runs in the same tab.`,
         }),
       )
     } catch (error) {
+      if (epoch !== state.chainEpoch) return
       clear(status)
       status.appendChild(
         verdict('warn', 'Cannot lock', error instanceof Error ? error.message : String(error)),

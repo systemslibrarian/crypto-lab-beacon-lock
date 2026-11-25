@@ -19,7 +19,7 @@ import {
 import { open, randomKey, seal, type SealedPayload } from '../core/envelope'
 import { measureSquaringRate, type Calibration } from '../core/models'
 import { beU64 } from '../core/bytes'
-import { decrypt, encrypt, type EncryptTrace, type TimelockCiphertext } from '../core/tlock'
+import { decrypt, encrypt, type TimelockCiphertext } from '../core/tlock'
 import type { G1Point } from '../core/bls'
 
 export interface LockedItem {
@@ -31,8 +31,6 @@ export interface LockedItem {
   readonly keyCiphertext: TimelockCiphertext
   /** The AES-GCM envelope holding the actual message. */
   readonly payload: SealedPayload
-  /** Sender-side intermediates. Never transmitted; held for the mechanism panel. */
-  readonly trace: EncryptTrace
   readonly plaintextBytes: number
   opened: string | null
 }
@@ -195,35 +193,30 @@ class LabState {
    * header cannot be relabelled.
    */
   async lock(label: string, plaintext: string, targetRound: number): Promise<LockedItem> {
+    const epoch = this.chainEpoch
+    const lockedAtRound = this.round
     const identity = this.messageForRound(targetRound)
     const key = randomKey()
-    const aad = beU64(targetRound)
-    const payload = await seal(key, plaintext, aad)
-    const { ciphertext, trace } = encrypt(
-      this.beacon.keys.publicKey,
-      identity,
-      key,
-      targetRound,
-      'simulated-chain',
-    )
-    // The key is gone from this scope the moment we return; only the timelock
-    // ciphertext and the sealed payload are retained.
-    key.fill(0)
-
-    const item: LockedItem = {
-      id: `lock-${this.nextId++}`,
-      label,
-      targetRound,
-      lockedAtRound: this.round,
-      keyCiphertext: ciphertext,
-      payload,
-      trace,
-      plaintextBytes: new TextEncoder().encode(plaintext).length,
-      opened: null,
+    try {
+      const payload = await seal(key, plaintext, beU64(targetRound))
+      if (epoch !== this.chainEpoch) throw new Error('The beacon changed while sealing the message.')
+      const { ciphertext } = encrypt(this.beacon.keys.publicKey, identity, key, targetRound, 'simulated-chain')
+      const item: LockedItem = {
+        id: `lock-${this.nextId++}`,
+        label,
+        targetRound,
+        lockedAtRound,
+        keyCiphertext: ciphertext,
+        payload,
+        plaintextBytes: new TextEncoder().encode(plaintext).length,
+        opened: null,
+      }
+      this.items.unshift(item)
+      this.notify()
+      return item
+    } finally {
+      key.fill(0)
     }
-    this.items.unshift(item)
-    this.notify()
-    return item
   }
 
   /**

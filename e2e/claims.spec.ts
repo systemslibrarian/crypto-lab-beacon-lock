@@ -117,7 +117,7 @@ test('a locked ciphertext opens to exactly the text that was locked', async ({ p
 
   // A message the source does not contain, so nothing downstream can be a
   // hardcoded echo of a preset.
-  const secret = 'sealed until the beacon says otherwise — 7f3a91'
+  const secret = '  sealed until the beacon says otherwise — 7f3a91 🔏\n  '
   await page.locator('#lock-message').fill(secret)
   await lock(page, 3)
 
@@ -142,7 +142,7 @@ test('a locked ciphertext opens to exactly the text that was locked', async ({ p
   // The verdict is checked against the value the page itself produced: the
   // recovered plaintext must equal the textarea that fed the encryptor.
   const typed = await page.locator('#lock-message').inputValue()
-  await expect(item.locator('.plaintext')).toHaveText(typed)
+  expect(await item.locator('.plaintext').textContent()).toBe(typed)
   expect(typed).toBe(secret)
 
   await expect(item.locator('.verdict-ok')).toContainText('Opened')
@@ -771,4 +771,27 @@ test('the lab stays drivable after a halt and after a reset', async ({ page }) =
   await expect(page.locator('#lock .vault-item')).toHaveCount(1)
 
   expect(errors).toEqual([])
+})
+
+test('reset during sealing leaves the new vault empty', async ({ page }) => {
+  await openLab(page)
+  await page.evaluate(() => {
+    const seal = crypto.subtle.encrypt.bind(crypto.subtle)
+    crypto.subtle.encrypt = async (...args) => {
+      crypto.subtle.encrypt = seal
+      document.body.dataset.seal = 'waiting'
+      await new Promise<void>(resolve => document.addEventListener('resume-test-seal',
+        () => resolve(), { once: true }))
+      const result = await seal(...args)
+      setTimeout(() => { document.body.dataset.seal = 'finished' }, 0)
+      return result
+    }
+  })
+  await page.getByRole('button', { name: 'Lock it' }).click()
+  await expect(page.locator('body')).toHaveAttribute('data-seal', 'waiting')
+  await page.getByRole('button', { name: 'Reset lab' }).click()
+  await page.evaluate(() => document.dispatchEvent(new Event('resume-test-seal')))
+  await expect(page.locator('body')).toHaveAttribute('data-seal', 'finished')
+  await expect(page.locator('#lock .vault-item')).toHaveCount(0)
+  await expect(page.locator('#lock [aria-label="Lock result"]')).toBeEmpty()
 })

@@ -183,8 +183,8 @@ Everything runs in the browser. No backend, no network requests, no key material
   after the ordering is fixed, so nobody can front-run what they cannot read.
 - **Coordinated disclosure and embargoes** — publish the ciphertext ahead of the date; the
   embargo is enforced by arithmetic rather than by everyone's good behaviour.
-- **Dead-man switches** — no single service holding a copy, and no single service that can be
-  leaned on.
+- **Scheduled letters** — once a recipient has the ciphertext, the target round releases its key.
+  A check-in or cancellation condition would require a separate mechanism.
 
 ---
 

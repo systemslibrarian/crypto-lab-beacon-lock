@@ -14,11 +14,11 @@ export function mountIntro(host: HTMLElement): void {
     el('p', {
       class: 'lede-big',
       text:
-        'You can encrypt something today so that nobody — including you — can read it until a specific moment next week. No single escrow holding a copy, no "please delete this on Tuesday" promise, no server deciding when to hand it over: the key is split across the beacon’s operators, and it takes a threshold of them to assemble it early.',
+        'You can send someone a ciphertext today that they can open when a future beacon round is published. The sender can keep the original message. A recipient with only the ciphertext must wait for the round signature, assuming a threshold of operators does not sign early.',
     }),
     el('p', {
       text:
-        'The trick is to borrow a clock that already exists in public. A randomness beacon publishes a fresh signed number every few seconds, forever, on a fixed schedule. Encrypt to a round that has not happened yet, and the signature the beacon will publish for that round turns out to be exactly the decryption key. Until then the key does not exist anywhere, because nobody has signed that round yet — and assembling it early takes a threshold of the beacon’s operators doing it in private.',
+        'The beacon aims to publish a signed value on a fixed schedule. You can name a future round before its signature exists. Publishing that signature supplies the decryption key to everyone at once. If the network stops before that round, the scheduled time can pass while the ciphertext stays locked.',
     }),
     el('p', {
       text:
@@ -87,7 +87,7 @@ export function mountIntro(host: HTMLElement): void {
         ],
         [
           'Round',
-          'One tick of the beacon, numbered from 1. drand’s quicknet chain publishes round n three seconds after round n−1, forever.',
+          'One tick of the beacon, numbered from 1. Quicknet schedules rounds three seconds apart. A stalled beacon can miss that schedule.',
         ],
         [
           'BLS signature',
