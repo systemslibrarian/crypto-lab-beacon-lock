@@ -4,7 +4,7 @@
 
 Beacon-based timelock encryption where a ciphertext is locked to a future round of a public
 randomness beacon — when the beacon publishes that round's signature, it becomes the decryption
-key. Nobody grinds, everybody waits.
+key. Recipients can decrypt once they obtain that signature. The delay assumes enough operators stay online, fewer than the threshold sign early, and the cryptographic assumptions hold.
 
 **[Open the live demo →](https://systemslibrarian.github.io/crypto-lab-beacon-lock/)**
 
@@ -63,8 +63,7 @@ over type-3 pairings — the asymmetric (co-)BDH variant
 construction, and not plain CDH in one group, because a co-BDH instance is spread across both G1
 and G2. BLS12-381 puts that at ~126 bits conjectured, after the 2016 exTNFS improvements. On top
 of it sit two assumptions that are *not* mathematical: the beacon stays **live** until the target
-round, and a threshold of its operators do not **sign early in private**. Both are stated on the
-page, and one of them has its own exhibit.
+round, and a threshold of its operators do not **sign early in private**. Timelock confidentiality depends on the future round signature remaining unavailable until release. It does not require the hash of that signature to be unbiased as a random-number source. In drand, distributed key generation gives each operator a share. Verified partial signatures are combined using Lagrange interpolation once the threshold is met. This lab represents that service with one scalar. [drand cryptography](https://docs.drand.love/docs/cryptography/).
 
 **Standards reviewed 15 November 2026:** the assumption names above are Theorem 1 and §2.1 of
 ePrint 2023/189; the custodian wording below is §6.1 of the same paper, which trusts only "that
@@ -116,14 +115,12 @@ constant-time, and no key material on the page should protect anything you care 
 
 - The unlock moment is a **wall-clock time**, not a puzzle budget — sealed-bid auctions,
   embargoed disclosures, coordinated vulnerability release, a will that opens on a date.
-- **Many parties must open simultaneously.** One 48-byte publication unlocks every ciphertext
-  addressed to that round, for everyone, at the same instant.
+- **Many parties need the same release condition.** One 48-byte round signature unlocks every ciphertext addressed to that round. Network delivery and local processing determine when each recipient can actually read their message.
 - You cannot tolerate a **single custodian**. The escrow is spread rather than removed: the
   master secret lives as a threshold share across the beacon's operators, so there is no one party
   to subpoena, breach or bribe — and it takes a threshold of them, signing in private, to extract
   a round key before it is published to the world.
-- You need the delay to be **immune to money.** An adversary with a warehouse of ASICs opens at
-  exactly the same second as everyone else.
+- **Release should follow a publication rather than a computation.** Faster recipient hardware alone cannot produce a future signature while the threshold and cryptographic assumptions hold. An outage can delay release beyond the scheduled time.
 
 **Do NOT use it when:**
 
